@@ -1,9 +1,11 @@
 ﻿using AutomaticRenewals2021.Models;
+using COTDP.Models;
 using COTDP.Services;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -22,31 +24,28 @@ namespace AutomaticRenewals2021
 
         private void Form1_Load(object sender, EventArgs e)
         {
-
-        }
-
-        public ServiceResponse AutomaticRenewalProcess()
-        {
+            objDUT.WriteLog("TEST");
             ServiceResponse response = new ServiceResponse();
+            RenewalService _renewalService = new RenewalService();
             try
             {
-                objDUT.EnviarCorreoLP(0, "", "Automatic Process Began", "Automatic Process Began", "lisander23@gmail.com", null, "", "");
-                objDUT.WriteLog("START PROCESS: " + DateTime.Now, 1000);
 
-                RunAutomaticRenewals();
-
-                RunOneTimePaymentRequest();
-
-                RunRecurrentPaymentRequests();
-
+                response = _renewalService.AutomaticRenewalProcess();
+                if (response.Success == true)
+                {
+                    objDUT.WriteLog("ALL RENEWAL PROCESS FINISHED SUCCESSFULLY");
+                }
+                else
+                {
+                    objDUT.WriteLog("RENEWAL PROCESS FINISHED WITH ERRORS" + response.Message);
+                }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-
-                objDUT.WriteLog("Error in Load Method: " + ex.Message);
+                objDUT.WriteLog("RENEWAL PROCESS DIDN'T FINISH DUE TO ERRORS" + response.Message);
             }
-
-            return response;
+            Application.Exit();
         }
+
     }
 }

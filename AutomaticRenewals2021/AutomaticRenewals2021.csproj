@@ -34,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -52,10 +53,16 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Models\Donor.cs" />
+    <Compile Include="Models\RenewalDonor.cs" />
+    <Compile Include="Models\RenewalMailDonorLP.cs" />
     <Compile Include="Models\ServiceResponse.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\DataUtility.cs" />
+    <Compile Include="Services\DonorService.cs" />
+    <Compile Include="Services\RenewalService.cs" />
+    <Compile Include="Services\Utility.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>

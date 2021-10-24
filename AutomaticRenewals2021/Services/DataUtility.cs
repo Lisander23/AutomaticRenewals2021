@@ -110,7 +110,7 @@ namespace COTDP.Services
             // Check Connection object for null.
             if (_mCon == null)
             {
-                _mCon = new SqlConnection(ConfigurationManager.AppSettings["ConnectionString"].ToString());
+                _mCon = new SqlConnection(ConfigurationManager.ConnectionStrings["ConnectionString"].ToString());
             }
             // Check Connection State.
             if (_mCon.State == ConnectionState.Closed)
@@ -384,7 +384,7 @@ namespace COTDP.Services
         {
             try
             {
-                int i = objDUT.ExecuteSql("Insert into AutoRenewalLog (Message, Date) values('" + text + "' ,'" + GetTimeLP() + "')");
+                int i = ExecuteSql("Insert into AutoRenewalLog (Message, Date) values('" + text + "' ,'" + GetTimeLP() + "')");
                 if (TimeWait > 0)
                 {
                     Esperar(TimeWait);
@@ -394,6 +394,34 @@ namespace COTDP.Services
             {
                 // MessageBox.Show(ex.Message);
             }
+        }
+
+        public string GetTimeLP()
+        {
+            string SystemTime = "";
+            try
+            {
+                string query = "Select Caption,Default_value from company_settings where  caption ='Time Zone'";
+                DataTable dt1 = GetDataTable(query);
+                if (dt1.Rows.Count > 0)
+                {
+                    //msglist.Add(sdr["Default_value"].ToString());
+                    //msglist.Add(sdr["Caption"].ToString());
+
+                    query = "select DATEADD(hh," + dt1.Rows[0]["Default_value"].ToString() + ", GETUTCDATE())";
+                    DataTable hora = GetDataTable(query);
+                    SystemTime = hora.Rows[0][0].ToString();
+                }
+            }
+            catch (Exception excep)
+            {
+            }
+            return SystemTime;
+        }
+
+        public void Esperar(int MiliSeconds)
+        {
+            System.Threading.Thread.Sleep(MiliSeconds);
         }
         /// <summary>
         /// This method is used to execute DML using stored procedure.
@@ -762,34 +790,6 @@ namespace COTDP.Services
             return linenum;
         }
 
-        public int WriteLog(string regno, string Message = "", string Module = "", string typeLog = "", int IDDonor = 0)
-        {
-            try
-            {
-                int result;
-                string query;
-                string LoginID;
-
-                query = "SELECT LOGINID FROM MEMBER_MASTER WHERE REGNO=" + regno;
-                DataTable DT = GetDataTable(query);
-                if (DT.Rows.Count > 0)
-                {
-                    LoginID = DT.Rows[0][0].ToString();
-                }
-                else
-                {
-                    LoginID = "";
-                }
-
-                query = "INSERT INTO LOGS (MESSAGE,DATE,REGNO,LOGINID,MODULE,TYPELOG) VALUES ('" + Message.Replace("'", "") + "','" + GetTimeLP2() + "','" + regno + "','" + LoginID + "','" + Module + "','" + typeLog + "')";
-                result = ExecuteSql(query);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
 
         public string GetTimeLP2()
         {
