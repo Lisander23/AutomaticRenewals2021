@@ -1777,18 +1777,18 @@ namespace COTDP.Services
             return response;
         }
 
-        public string AgendarNextExecution(string Frecuency)
+        public string AgendarNextExecution(string Frecuency, DateTime dateScheduled)
         {
             DateTime NextExecutionDate;
             string NextExecutionDatestring = "";
             if (Frecuency == "WEEKLY")
             {
-                NextExecutionDate = DateTime.Today.AddDays(7);
+                NextExecutionDate = dateScheduled.AddDays(7);
                 NextExecutionDatestring = NextExecutionDate.ToString("yyyy/MM/dd");
             }
             else if (Frecuency == "MONTHLY")
             {
-                NextExecutionDate = DateTime.Today.AddMonths(1);
+                NextExecutionDate = dateScheduled.AddMonths(1);
                 NextExecutionDatestring = NextExecutionDate.ToString("yyyy/MM/dd");
             }
 
@@ -1866,7 +1866,7 @@ namespace COTDP.Services
                 long ID = Convert.ToInt64(Fila["ID"].ToString());
                 if (Fila["DateScheduled"].ToString() != "" && Fila["DateScheduled"].ToString() != null)
                 {
-                    if (Fila["RecurrentPayment"].ToString().Trim() == "YES" && Convert.ToDateTime(Fila["DateScheduled"]).ToString("yyyy/MM/dd") == DateTime.Now.ToString("yyyy/MM/dd"))
+                    if (Fila["RecurrentPayment"].ToString().Trim() == "YES" && DateTime.Now.Date >= Convert.ToDateTime(Fila["DateScheduled"]).Date)
                     {
                         if (Fila["LastDateExecution"].ToString() != null && Fila["LastDateExecution"].ToString() != "")
                         {
@@ -1900,7 +1900,7 @@ namespace COTDP.Services
                         {
                             ACID = CrearSolicitudDePago(Convert.ToDecimal(Fila["Amount"].ToString()), remark, Convert.ToInt32(Fila["Regno"].ToString()), "YES");
                             WriteLog("WITHDRAWAL ID:" + ID + " PROCESSED. ACID: " + ACID, 1000);
-                            NextExecutionString = AgendarNextExecution(Fila["Frecuency"].ToString());
+                            NextExecutionString = AgendarNextExecution(Fila["Frecuency"].ToString(), Convert.ToDateTime(Fila["DateScheduled"]).Date);
                             query = "UPDATE WithdrawalRequestMethods SET DateScheduled='" + NextExecutionString + "', LASTDATEEXECUTION='" + objDUT.GetTimeLP2() + "', ACID=" + Convert.ToInt64(ACID) + ", CONDITION='TRANSFERRED TO ADMIN' WHERE ID=" + ID;
                             objDUT.ExecuteSql(query);
                             CreateWithdrawalRequestToKeepRecurrency(ID);

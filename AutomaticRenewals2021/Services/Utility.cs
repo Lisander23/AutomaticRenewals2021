@@ -807,7 +807,7 @@ namespace COTDP.Services
         public Decimal getBalance(long regno)
         {
             SqlCommand cmd;
-            SqlConnection cnn = new SqlConnection(ConfigurationManager.AppSettings["ConnectionString"].ToString());
+            SqlConnection cnn = new SqlConnection(ConfigurationManager.ConnectionStrings["ConnectionString"].ToString());
             DataUtility objDUT = new DataUtility();
             //------------- Get account balance
             cmd = new SqlCommand();
