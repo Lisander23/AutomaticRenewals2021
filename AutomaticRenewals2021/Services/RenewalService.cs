@@ -1827,16 +1827,14 @@ namespace COTDP.Services
             DateCreated = DT.Rows[0]["DateCreated"].ToString();
             //DateScheduled = DT.Rows[0]["DateScheduled"].ToString();
 
-            if (Frecuency == "WEEKLY")
-            {
-                //DateScheduled = Next Week
-                DateScheduled = DateTime.Today.AddDays(7).ToString("yyyy/MM/dd");
-            }
-            else if (Frecuency == "MONTHLY")
-            {
-                //DateScheduled = Next Month
-                DateScheduled = DateTime.Today.AddMonths(1).ToString("yyyy/MM/dd");
-            }
+
+            DateScheduled = AgendarNextExecution(Frecuency, Convert.ToDateTime(LastDateExecution));
+
+
+            //if (DateTime.Now.Date < Convert.ToDateTime(DateScheduled))
+            //{
+            //    LastDateExecution = objDUT.GetTimeLP2();
+            //}
 
 
             query = "insert into WithdrawalRequestMethods(regno,PaymentMethod,EmailPaypal,XoomName,XoomLastName,XoomAddress," +
@@ -1844,23 +1842,43 @@ namespace COTDP.Services
                 "DayOfMonthRecurrent,Amount,Frecuency,DayOfWeek,Remark,ACID,DateCreated,DateScheduled) VALUES(" + Regno +
                 ",'" + PaymentMethod + "','" + EmailPaypal + "','" + XoomName + "','" + XoomLastName + "','" + XoomAddress +
                 "','" + XoomEmail + "','" + XoomPhone + "','" + XoomBankName + "','" + XoomAccountNumber + "','" + XoomAccountType +
-                "','" + Alias + "','ACTIVE','" + objDUT.GetTimeLP2() + "','" + RecurrentPayment + "','" + DayOfMonthRecurrent +
-                "'," + Amount + ",'" + Frecuency + "','" + DayOfWeek + "','" + Remark + "',0,'" + Convert.ToDateTime(DateCreated) + "','" + Convert.ToDateTime(DateScheduled) + "')";
+                "','" + Alias + "','ACTIVE','" + LastDateExecution + "','" + RecurrentPayment + "','" + DayOfMonthRecurrent +
+                "'," + Amount + ",'" + Frecuency + "','" + DayOfWeek + "','" + Remark + "',0,'" + Convert.ToDateTime(DateCreated) +
+                "','" + Convert.ToDateTime(DateScheduled) + "')";
             objDUT.ExecuteSql(query);
         }
 
-        public void RunRecurrentPaymentRequests()
+        private void ProcessRequest(string ACID, DataRow Fila, string remark, string NextExecutionString, long ID) 
         {
-            //EXECUTE WITHDRAWALS REQUEST RECURRENT
-            WriteLog("COMIENZA PAGO DE SOLICITUDES RECURRENTES", 1000);
+            ACID = CrearSolicitudDePago(Convert.ToDecimal(Fila["Amount"].ToString()), remark, Convert.ToInt32(Fila["Regno"].ToString()), "YES");
+            WriteLog("WITHDRAWAL ID:" + ID + " PROCESSED. ACID: " + ACID, 1000);
 
-            WriteLog("FECHA Y HORA ACTUAL:" + DateTime.Now + ". " + DateTime.Now.ToShortDateString(), 1000);
+            NextExecutionString = AgendarNextExecution(Fila["Frecuency"].ToString(), Convert.ToDateTime(Fila["DateScheduled"]).Date);
 
+            string LastDateExecution;
+            if (DateTime.Now.Date > Convert.ToDateTime(NextExecutionString))
+            {
+                LastDateExecution = NextExecutionString;
+            }
+            else
+            {
+                LastDateExecution = string.IsNullOrEmpty(Fila["DateScheduled"].ToString()) ? objDUT.GetTimeLP2() : Fila["DateScheduled"].ToString();    //Se coloca la fecha agendada anterior
+            }
+            //ACTUALIZO LA SOLICITUD COMO TRANSFERIDA A ADMIN Y DEBO CREAR OTRA IGUAL PARA QUE SE MANTENGA LA RECURRENCIA
+            string query = "UPDATE WithdrawalRequestMethods SET LASTDATEEXECUTION='" + LastDateExecution + "', ACID=" + Convert.ToInt64(ACID) + ", CONDITION='TRANSFERRED TO ADMIN' WHERE ID=" + ID;
+            objDUT.ExecuteSql(query);
+            CreateWithdrawalRequestToKeepRecurrency(ID);
+            WriteLog("WITHDRAWAL ID:" + ID + " NEXT EXECUTION SCHEDULED TO " + NextExecutionString, 1000);
+        }
 
+        private int ProcessRecurrentPaymentProcess() 
+        {
             string query = "SELECT * FROM WithdrawalRequestMethods WHERE RECURRENTPAYMENT='YES' AND STATUS='ACTIVE' AND ACID=0 ORDER BY ID";
             DataTable dt = objDUT.GetDataTable(query);
             string ACID = "", remark = "", NextExecutionString = "";
             DateTime NextExecution;
+            int contador = 0;
+
             foreach (DataRow Fila in dt.Rows)
             {
                 long ID = Convert.ToInt64(Fila["ID"].ToString());
@@ -1868,44 +1886,9 @@ namespace COTDP.Services
                 {
                     if (Fila["RecurrentPayment"].ToString().Trim() == "YES" && DateTime.Now.Date >= Convert.ToDateTime(Fila["DateScheduled"]).Date)
                     {
-                        if (Fila["LastDateExecution"].ToString() != null && Fila["LastDateExecution"].ToString() != "")
-                        {
-                            if (Convert.ToDateTime(Fila["LastDateExecution"].ToString()).ToString("yyyy/MM/dd") != DateTime.Today.ToString("yyyy/MM/dd"))
-                            {
-                                ACID = CrearSolicitudDePago(Convert.ToDecimal(Fila["Amount"].ToString()), remark, Convert.ToInt32(Fila["Regno"].ToString()), "YES");
-                                WriteLog("WITHDRAWAL ID:" + ID + " PROCESSED. ACID: " + ACID, 1000);
+                        ProcessRequest(ACID, Fila, remark, NextExecutionString, ID);
 
-                                if (Fila["Frecuency"].ToString() == "WEEKLY")
-                                {
-                                    NextExecution = Convert.ToDateTime(objDUT.GetTimeLP2()).AddDays(7);
-                                    NextExecutionString = NextExecution.ToString("yyyy-MM-dd");
-                                }
-                                else if (Fila["Frecuency"].ToString() == "MONTHLY")
-                                {
-                                    NextExecution = Convert.ToDateTime(objDUT.GetTimeLP2()).AddMonths(1);
-                                    NextExecutionString = NextExecution.ToString("yyyy-MM-dd");
-                                }
-                                else
-                                {
-                                    NextExecutionString = "";
-                                }
-                                //ACTUALIZO LA SOLICITUD COMO TRANSFERIDA A ADMIN Y DEBO CREAR OTRA IGUAL PARA QUE SE MANTENGA LA RECURRENCIA
-                                query = "UPDATE WithdrawalRequestMethods SET LASTDATEEXECUTION='" + objDUT.GetTimeLP2() + "', ACID=" + Convert.ToInt64(ACID) + ", CONDITION='TRANSFERRED TO ADMIN' WHERE ID=" + ID;
-                                objDUT.ExecuteSql(query);
-                                CreateWithdrawalRequestToKeepRecurrency(ID);
-                                WriteLog("WITHDRAWAL ID:" + ID + " NEXT EXECUTION SCHEDULED TO " + NextExecutionString, 1000);
-                            }
-                        }
-                        else
-                        {
-                            ACID = CrearSolicitudDePago(Convert.ToDecimal(Fila["Amount"].ToString()), remark, Convert.ToInt32(Fila["Regno"].ToString()), "YES");
-                            WriteLog("WITHDRAWAL ID:" + ID + " PROCESSED. ACID: " + ACID, 1000);
-                            NextExecutionString = AgendarNextExecution(Fila["Frecuency"].ToString(), Convert.ToDateTime(Fila["DateScheduled"]).Date);
-                            query = "UPDATE WithdrawalRequestMethods SET DateScheduled='" + NextExecutionString + "', LASTDATEEXECUTION='" + objDUT.GetTimeLP2() + "', ACID=" + Convert.ToInt64(ACID) + ", CONDITION='TRANSFERRED TO ADMIN' WHERE ID=" + ID;
-                            objDUT.ExecuteSql(query);
-                            CreateWithdrawalRequestToKeepRecurrency(ID);
-                            WriteLog("WITHDRAWAL ID:" + ID + " NEXT EXECUTION SCHEDULED TO " + NextExecutionString, 1000);
-                        }
+                        contador++;
                     }
                     else
                     {
@@ -1917,6 +1900,25 @@ namespace COTDP.Services
                     WriteLog("WITHDRAWAL ID:" + ID + " NOT PROCESSED. DateScheduled is Null/Empty", 1000);
                 }
             }
+            return contador;
+        }
+
+        public void RunRecurrentPaymentRequests()
+        {
+            //EXECUTE WITHDRAWALS REQUEST RECURRENT
+            WriteLog("COMIENZA PAGO DE SOLICITUDES RECURRENTES", 1000);
+
+            WriteLog("FECHA Y HORA ACTUAL:" + DateTime.Now + ". " + DateTime.Now.ToShortDateString(), 1000);
+
+            int Times = 1;
+            int contador = 1;
+            while (contador > 0)
+            {
+                contador = ProcessRecurrentPaymentProcess();
+                WriteLog("FINALIZA CICLO DE PAGO DE SOLICITUDES RECURRENTES " + Times, 1000);
+                Times++;
+            }
+
             WriteLog("FINALIZA PAGO DE SOLICITUDES RECURRENTES", 1000);
         }
         #endregion
